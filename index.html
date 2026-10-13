@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de las Tablas - Edición Veloz</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Segoe UI', Tahoma, sans-serif;
+            background-color: #e0f7fa;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #fff;
+            background-color: #ff7043;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            text-shadow: 2px 2px 0px #d84315;
+        }
+        .screen {
+            display: none;
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            margin-top: 20px;
+        }
+        .active {
+            display: block;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #29b6f6;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.3em;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0px #0288d1;
+        }
+        button:hover { 
+            background-color: #03a9f4; 
+            transform: translateY(2px);
+            box-shadow: 0 2px 0px #0288d1;
+        }
+        .btn-table { 
+            background-color: #66bb6a; 
+            box-shadow: 0 4px 0px #388e3c;
+        }
+        .btn-table:hover { 
+            background-color: #4caf50; 
+            box-shadow: 0 2px 0px #388e3c;
+        }
+        
+        #question-text {
+            font-size: 3.5em;
+            font-weight: bold;
+            color: #4527a0;
+            margin: 20px 0;
+        }
+        input[type="number"] {
+            font-size: 2.5em;
+            width: 120px;
+            text-align: center;
+            padding: 10px;
+            border: 4px solid #b3e5fc;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            color: #ff5722;
+        }
+        #feedback {
+            font-size: 1.5em;
+            font-weight: bold;
+            height: 60px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .time-text { font-size: 0.7em; color: #555; font-weight: normal; margin-top: 5px; }
+        .correct { color: #43a047; animation: pop 0.4s ease-out; }
+        .incorrect { color: #e53935; animation: shake 0.4s ease-in-out; }
+        .score-text { font-size: 2em; color: #8e44ad; font-weight: bold; }
+        
+        #fun-gif { width: 150px; border-radius: 10px; margin-bottom: 15px; }
+
+        /* Animaciones divertidas */
+        @keyframes pop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 Reto de las Tablas 🚀</h1>
+
+    <!-- Pantalla 1: Selección de tabla -->
+    <div id="screen-select" class="screen active">
+        <img src="https://media.giphy.com/media/LmNwrBhejkK9EFP504/giphy.gif" id="fun-gif" alt="Gato calculando">
+        <h2>¿Qué tabla quieres practicar hoy?</h2>
+        <div class="grid" id="table-buttons">
+            <!-- Los botones se generan con JavaScript -->
+        </div>
+    </div>
+
+    <!-- Pantalla 2: Preguntas -->
+    <div id="screen-quiz" class="screen">
+        <h2 id="quiz-title">Tabla del X</h2>
+        <div id="question-text"></div>
+        <input type="number" id="answer-input" placeholder="?" onkeypress="handleEnter(event)">
+        <div id="feedback"></div>
+        <button onclick="checkAnswer()" id="btn-check">Comprobar</button>
+    </div>
+
+    <!-- Pantalla 3: Resultados -->
+    <div id="screen-result" class="screen">
+        <h2>¡Reto completado! 🏁</h2>
+        <p class="score-text" id="final-score"></p>
+        <p id="avg-time" style="font-size: 1.2em; color: #0277bd; font-weight: bold;"></p>
+        <div id="mistakes-list" style="text-align: left; margin-bottom: 20px; font-size: 1.1em;"></div>
+        <button onclick="resetGame()">Elegir otra tabla</button>
+    </div>
+
+    <script>
+        let currentTable = 1;
+        let numbers = [];
+        let currentIndex = 0;
+        let score = 0;
+        let mistakes = [];
+        let startTime = 0;
+        let totalTime = 0;
+
+        // Generar botones del 1 al 10
+        const grid = document.getElementById('table-buttons');
+        for (let i = 1; i <= 10; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.className = 'btn-table';
+            btn.onclick = () => startQuiz(i);
+            grid.appendChild(btn);
+        }
+
+        function startQuiz(tableNumber) {
+            currentTable = tableNumber;
+            score = 0;
+            currentIndex = 0;
+            mistakes = [];
+            totalTime = 0;
+            
+            numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            numbers.sort(() => Math.random() - 0.5);
+
+            document.getElementById('quiz-title').textContent = `⚡ Tabla del ${currentTable} ⚡`;
+            document.getElementById('feedback').textContent = '';
+            
+            showScreen('screen-quiz');
+            askQuestion();
+        }
+
+        function askQuestion() {
+            const input = document.getElementById('answer-input');
+            input.value = '';
+            input.disabled = false;
+            input.focus();
+            document.getElementById('btn-check').style.display = 'inline-block';
+            document.getElementById('question-text').textContent = `${currentTable} x ${numbers[currentIndex]}`;
+            
+            // Iniciar el cronómetro de esta pregunta
+            startTime = Date.now();
+        }
+
+        function checkAnswer() {
+            const input = document.getElementById('answer-input');
+            const feedback = document.getElementById('feedback');
+            const userAnswer = parseInt(input.value);
+            const correctAnswer = currentTable * numbers[currentIndex];
+
+            if (isNaN(userAnswer)) return; 
+
+            // Calcular cuánto ha tardado
+            const timeTaken = ((Date.now() - startTime) / 1000).toFixed(1);
+            totalTime += parseFloat(timeTaken);
+
+            input.disabled = true;
+            document.getElementById('btn-check').style.display = 'none';
+
+            // Quitar clases previas para que la animación funcione cada vez
+            feedback.className = '';
+            void feedback.offsetWidth; // Truco para reiniciar la animación de CSS
+
+            if (userAnswer === correctAnswer) {
+                score++;
+                feedback.innerHTML = `¡Toma ya! 🌟 <div class="time-text">Has tardado ${timeTaken} segundos</div>`;
+                feedback.classList.add('correct');
+            } else {
+                feedback.innerHTML = `¡Uy! Era ${correctAnswer} 😅 <div class="time-text">Has tardado ${timeTaken} segundos</div>`;
+                feedback.classList.add('incorrect');
+                mistakes.push(`❌ ${currentTable} x ${numbers[currentIndex]} = ${correctAnswer} (Pusiste ${userAnswer})`);
+            }
+
+            currentIndex++;
+            setTimeout(() => {
+                feedback.textContent = '';
+                if (currentIndex < numbers.length) {
+                    askQuestion();
+                } else {
+                    showResults();
+                }
+            }, 2000); // Espera 2 segundos para que le dé tiempo a leer el mensaje
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') checkAnswer();
+        }
+
+        function showResults() {
+            document.getElementById('final-score').textContent = `Nota: ${score} / 10`;
+            
+            const avgTime = (totalTime / 10).toFixed(1);
+            document.getElementById('avg-time').innerHTML = `⏱️ Velocidad media: ${avgTime} segundos por pregunta`;
+            
+            const mistakesDiv = document.getElementById('mistakes-list');
+            if (mistakes.length > 0) {
+                mistakesDiv.innerHTML = '<strong>A repasar:</strong><ul>' + mistakes.map(m => `<li>${m}</li>`).join('') + '</ul>';
+            } else {
+                mistakesDiv.innerHTML = '<strong>¡Impresionante! 🎉 Todo perfecto y a la velocidad del rayo.</strong>';
+            }
+
+            showScreen('screen-result');
+        }
+
+        function resetGame() {
+            showScreen('screen-select');
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+    </script>
+</body>
+</html>
